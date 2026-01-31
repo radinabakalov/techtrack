@@ -36,7 +36,7 @@ rm model_archive_2.zip
 ###############################################
 echo "Downloading test videos..."
 wget --no-check-certificate \
-  "https://www.dropbox.com/scl/fo/x8uc2z95nc99gbrtnoqy1/AFcqiHI8KJy8loRxx6PgS7g?rlkey=szvlg1pkmwy7w6ta8vhwfk291&st=3mt25dpr&dl=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQBJIuTDpeqiRZJvYQJxNREKAXLhjXybZNm2AKkQxC8vy6o?e=dU32hL=1" \
   -O test_videos.zip
 
 echo "Extracting test videos..."
@@ -49,7 +49,7 @@ rm test_videos.zip
 ###############################################
 echo " Downloading logistics..."
 wget --no-check-certificate \
-  "https://www.dropbox.com/scl/fi/s8fm08eheuu9nuyp7q0bp/logistics.zip?rlkey=uutzw309zump0c3a4sf9mdpbk&st=p9okuigs&dl=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQC83xUcRiY3T5jOXuZQK__yAUXV9vahEIRIxBY8i0NKSEE?e=VqVzqz=1" \
   -O logistics.zip
 
 echo "Extracting logistics..."

@@ -10,7 +10,7 @@ mkdir -p techtrack/storage
 ###############################################
 echo " Downloading YOLO model 1..."
 wget --no-check-certificate \
-  "https://www.dropbox.com/scl/fo/i4fdjtg9tigyjchjs61n0/AA2AaIy4HsoLHRkwmvVC5iU?rlkey=ke6ji9wfweorx0bd5phs2dlho&st=ixsk44d1&dl=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCr_HU1khJLSoF-BtJEFQq1AQfCXAdt1ohoRb-SozPEJu0?e=W4rYyM=1" \
   -O model_archive_1.zip
 
 echo " Extracting YOLO model 1..."
@@ -23,7 +23,7 @@ rm model_archive_1.zip
 ###############################################
 echo " Downloading YOLO model 2..."
 wget --no-check-certificate \
-  "https://www.dropbox.com/scl/fo/mpqudwxmwnm2lbf8d2mo7/AOftARd-DHMPcCp800cUl3g?rlkey=3fhqixu6lalcku9o259io6b5z&st=1iiljn0i&dl=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCtI6wA-FChS41NtVmJJmsAAS3OdFkxIHojpmWWjkpymMU?e=V04Oel=1" \
   -O model_archive_2.zip
 
 echo "Extracting YOLO model 2..."

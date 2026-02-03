@@ -57,12 +57,32 @@ class Detector:
         - OpenCV YOLO Documentation: 
           https://opencv-tutorial.readthedocs.io/en/latest/yolo/yolo.html#create-a-blob
         """
+        if preprocessed_frame is None or preprocessed_frame.size == 0:
+            raise ValueError("Input frame is empty.")
+        
         self.img_height, self.img_width = preprocessed_frame.shape[:2]
 
-        # TASK: Use the YOLO model to return all raw outputs
+        # Turn the image into a blob for YOLO (normalizes and resizes)
+        blob = cv2.dnn.blobFromImage(
+            preprocessed_frame,
+            scalefactor=1 / 255.0, 
+            size=(416, 416),
+            swapRB=True,
+            crop=False,
+            )
         
-        # Return model outputs:
-        # return outputs
+        self.net.setInput(blob)
+        
+        # Get the names of the output layers (YOLO has multiple)
+        layer_names = self.net.getLayerNames()
+        out_layer_ids = self.net.getUnconnectedOutLayers()
+
+        # OpenCV sometimes returns shape (N,1), sometimes (N,)
+        out_layer_ids = np.array(out_layer_ids).flatten()
+        out_layer_names = [layer_names[i - 1] for i in out_layer_ids]
+
+        outputs = self.net.forward(out_layer_names)
+        return outputs
 
     def post_process(
         self, predict_output: List[np.ndarray]
@@ -102,15 +122,45 @@ class Detector:
         - OpenCV YOLO Documentation: 
           https://opencv-tutorial.readthedocs.io/en/latest/yolo/yolo.html#create-a-blob
         """
+        # Handle empty or missing predictions safely
+        if not predict_output:
+            return [], [], [], []
         
-        # TASK: Use the YOLO model to return list of NumPy arrays filtered
-        #         by processing the raw YOLO model predictions and filters out 
-        #         low-confidence detections (i.e., < score_threshold). Use the logic
-        #         in Line 83-88.
+        bboxes: List[List[int]] = []
+        class_ids: List[int] = []
+        confidence_scores: List[float] = []
+        class_scores: List[np.ndarray] = []
 
-        # Return these variables in order:
-        # return bboxes, class_ids, confidence_scores, class_scores
+        # Loop over each output layer's detections
+        for output in predict_output:
+            for detection in output:
+                # detection format: [cx, cy, w, h, obj_score, class1, class2, ...]
+                scores = detection[5:]
+                if scores.size == 0:
+                    continue
 
+                best_class_id = int(np.argmax(scores))
+
+                # YOLO box confidence (objectness score)
+                objectness = float(detection[4])
+
+                # Keep detections at or above the threshold
+                if objectness >= self.score_threshold:
+                    # Convert normalized bbox to pixel bbox
+                    cx = float(detection[0]) * self.img_width
+                    cy = float(detection[1]) * self.img_height
+                    w = float(detection[2]) * self.img_width
+                    h = float(detection[3]) * self.img_height
+
+                    x = int(cx - (w / 2))
+                    y = int(cy - (h / 2))
+
+                    bboxes.append([x, y, int(w), int(h)])
+                    class_ids.append(best_class_id)
+                    confidence_scores.append(objectness)
+                    class_scores.append(scores)
+
+        return bboxes, class_ids, confidence_scores, class_scores
 
 """
 EXAMPLE USAGE:

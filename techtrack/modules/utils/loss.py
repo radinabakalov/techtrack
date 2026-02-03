@@ -56,7 +56,72 @@ class Loss:
         Returns:
             tuple: (bounding boxes, objectness scores, class scores)
         """
-        pass 
+        if predictions is None:
+            return np.zeros((0, 4), dtype=float), np.zeros((0,), dtype=float), np.zeros((0, self.num_classes), dtype=float)
+
+        # If already passed in as (boxes, obj, cls)
+        if isinstance(predictions, tuple) and len(predictions) == 3:
+            pred_box, pred_obj, pred_cls = predictions
+            pred_box = np.array(pred_box, dtype=float).reshape(-1, 4)
+            pred_obj = np.array(pred_obj, dtype=float).reshape(-1)
+            pred_cls = np.array(pred_cls, dtype=float)
+            return pred_box, pred_obj, pred_cls
+
+        pred_boxes = []
+        pred_obj = []
+        pred_cls = []
+
+        for p in predictions:
+            # Dictionary style
+            if isinstance(p, dict):
+                box = p.get("bbox") or p.get("box") or p.get("bbox_xywh")
+                obj = p.get("score") or p.get("objectness") or p.get("conf")
+                cls = p.get("class_scores") or p.get("cls_scores") or p.get("probs")
+
+                if box is None:
+                    continue
+
+                pred_boxes.append(list(box))
+                pred_obj.append(float(obj) if obj is not None else 0.0)
+
+                if cls is None:
+                    pred_cls.append(np.zeros(self.num_classes, dtype=float))
+                else:
+                    cls_arr = np.array(cls, dtype=float).flatten()
+                    if cls_arr.size == self.num_classes:
+                        pred_cls.append(cls_arr)
+                    else:
+                        # Adjust to correct size
+                        vec = np.zeros(self.num_classes, dtype=float)
+                        take = min(self.num_classes, cls_arr.size)
+                        vec[:take] = cls_arr[:take]
+                        pred_cls.append(vec)
+                continue
+
+            # List/tuple row style: [x, y, w, h, obj, class_scores...]
+            row = np.array(p, dtype=float).flatten()
+            if row.size < 5:
+                continue
+
+            pred_boxes.append(row[:4].tolist())
+            pred_obj.append(float(row[4]))
+
+            cls_part = row[5:]
+            if cls_part.size == self.num_classes:
+                pred_cls.append(cls_part.astype(float))
+            elif cls_part.size == 0:
+                pred_cls.append(np.zeros(self.num_classes, dtype=float))
+            else:
+                vec = np.zeros(self.num_classes, dtype=float)
+                take = min(self.num_classes, cls_part.size)
+                vec[:take] = cls_part[:take]
+                pred_cls.append(vec)
+
+        pred_box = np.array(pred_boxes, dtype=float).reshape(-1, 4)
+        pred_obj = np.array(pred_obj, dtype=float).reshape(-1)
+        pred_cls = np.array(pred_cls, dtype=float)
+
+        return pred_box, pred_obj, pred_cls 
     
     def get_annotations(self, annotations):
         """
@@ -72,7 +137,44 @@ class Loss:
         Returns:
             tuple: (ground truth bounding boxes, class labels)
         """
-        pass
+        if annotations is None:
+            return np.zeros((0, 4), dtype=float), np.zeros((0,), dtype=int)
+
+        # If already passed in as (boxes, classes)
+        if isinstance(annotations, tuple) and len(annotations) == 2:
+            gt_box, gt_cls = annotations
+            gt_box = np.array(gt_box, dtype=float).reshape(-1, 4)
+            gt_cls = np.array(gt_cls, dtype=int).reshape(-1)
+            return gt_box, gt_cls
+
+        gt_boxes = []
+        gt_classes = []
+
+        for a in annotations:
+            # Dictionary style
+            if isinstance(a, dict):
+                box = a.get("bbox") or a.get("box") or a.get("bbox_xywh")
+                cls = a.get("class_id") or a.get("class") or a.get("label")
+
+                if box is None or cls is None:
+                    continue
+
+                gt_boxes.append(list(box))
+                gt_classes.append(int(cls))
+                continue
+
+            # Row style: [x, y, w, h, class_id]
+            row = np.array(a, dtype=float).flatten()
+            if row.size < 5:
+                continue
+
+            gt_boxes.append(row[:4].tolist())
+            gt_classes.append(int(row[4]))
+
+        gt_box = np.array(gt_boxes, dtype=float).reshape(-1, 4)
+        gt_cls = np.array(gt_classes, dtype=int).reshape(-1)
+
+        return gt_box, gt_cls
 
     def compute(self, predictions, annotations):
         """
@@ -96,13 +198,89 @@ class Loss:
         conf_loss_noobj = 0 # no object (or confidence) loss
         total_loss = 0 # aggregate loss including loc_loss, class_loss, conf_loss_obj, etc.
 
-        # TASK: Complete this method to compute the Loss function.
-        #         This method calculates the localization, objectness 
-        #         (or confidence) and classification loss.
-        #         This method will be called in the HardNegativeMiner class.
-        #         ----------------------------------------------------------
-        #         HINT: For simplicity complete use get_predictions(), get_annotations().
-        #         You may add class methods to improve the readability of this code. 
+        pred_boxes, pred_obj_scores, pred_cls_scores = self.get_predictions(predictions)
+        gt_boxes, gt_class_ids = self.get_annotations(annotations)
+
+        # Small helper as things get too long without it
+        def iou_xywh(box_a, box_b):
+            ax, ay, aw, ah = box_a
+            bx, by, bw, bh = box_b
+
+            ax2, ay2 = ax + aw, ay + ah
+            bx2, by2 = bx + bw, by + bh
+
+            inter_x1 = max(ax, bx)
+            inter_y1 = max(ay, by)
+            inter_x2 = min(ax2, bx2)
+            inter_y2 = min(ay2, by2)
+
+            inter_w = max(0, inter_x2 - inter_x1)
+            inter_h = max(0, inter_y2 - inter_y1)
+            inter_area = inter_w * inter_h
+
+            area_a = max(0, aw) * max(0, ah)
+            area_b = max(0, bw) * max(0, bh)
+            union_area = area_a + area_b - inter_area
+
+            if union_area == 0:
+                return 0.0
+            return inter_area / union_area
+
+        matched_pred_indices = set()
+
+        # Match each ground truth box to best prediction
+        for gt_idx, gt_box in enumerate(gt_boxes):
+            gt_class_id = int(gt_class_ids[gt_idx])
+
+            best_iou = 0.0
+            best_pred_idx = -1
+
+            for pred_idx, pred_box in enumerate(pred_boxes):
+                if pred_idx in matched_pred_indices:
+                    continue
+
+                iou = iou_xywh(pred_box, gt_box)
+                if iou > best_iou:
+                    best_iou = iou
+                    best_pred_idx = pred_idx
+
+            if best_pred_idx != -1 and best_iou >= self.iou_threshold:
+                matched_pred_indices.add(best_pred_idx)
+
+                pred_box = pred_boxes[best_pred_idx]
+                pred_obj = float(pred_obj_scores[best_pred_idx])
+                pred_scores_vec = pred_cls_scores[best_pred_idx]
+
+                # Localization loss (bounding box coordinates)
+                box_diff = np.array(pred_box, dtype=float) - np.array(gt_box, dtype=float)
+                loc_loss += float(np.sum(box_diff ** 2))
+
+                # Objectness loss for matched predictions
+                conf_loss_obj += (1.0 - pred_obj) ** 2
+
+                # Classification loss
+                gt_score = 0.0
+                if pred_scores_vec is not None and len(pred_scores_vec) > gt_class_id >= 0:
+                    gt_score = float(pred_scores_vec[gt_class_id])
+
+                class_loss += (1.0 - gt_score) ** 2
+
+            else:
+                # No matching prediction found
+                conf_loss_obj += 1.0
+                class_loss += 1.0
+
+        # Unmatched predictions (false positives)
+        for pred_idx, pred_obj in enumerate(pred_obj_scores):
+            if pred_idx in matched_pred_indices:
+                continue
+            conf_loss_noobj += float(pred_obj) ** 2
+
+        total_loss = (
+            self.lambda_coord * loc_loss
+            + self.lambda_obj * conf_loss_obj
+            + self.lambda_noobj * conf_loss_noobj
+            + self.lambda_cls * class_loss)
 
         return {
             "total_loss": total_loss, 

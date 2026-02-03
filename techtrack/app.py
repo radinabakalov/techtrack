@@ -4,6 +4,7 @@ from modules.inference.nms import NMS
 from modules.inference.model import Detector
 from modules.inference.preprocessing import Preprocessing
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class InferenceService:
     """
@@ -103,9 +104,32 @@ class InferenceService:
         service.run()
         ```
         """
-        
-        # TASK: Implement your Inference service. Use the docstrings to guide you on the
-        #       logic behind this implementation. 
+        frame_count = 0
+
+        for frame in self.stream.capture_video():
+            # End of stream or invalid frame
+            if frame is None or getattr(frame, "size", 0) == 0:
+                break
+
+            frame_count += 1
+
+            # Get model predictions
+            outputs = self.model.predict(frame)
+
+            # Convert to bounding boxes and scores
+            bboxes, class_ids, scores, cls_scores = self.detector.post_process(outputs)
+
+            # NMS filtering
+            bboxes, class_ids, scores, cls_scores = self.nms.filter(
+                bboxes, class_ids, scores, cls_scores)
+
+            # Output detections
+            for bbox, cls_id, score in zip(bboxes, class_ids, scores):
+                print(f"frame={frame_count} bbox={bbox} class_id={cls_id} score={score:.3f}")
+
+            # Draw boxes and save frame
+            processed_frame = self.draw_boxes(frame, bboxes, class_ids, scores)
+            self.save_frame(processed_frame, frame_count)
 
 
 # Runner for Inference Service
@@ -118,9 +142,9 @@ if __name__ == "__main__":
     stream = Preprocessing(VIDEO_SOURCE, drop_rate=60)
 
     # Initialize Model
-    WEIGHTS_PATH = "storage/yolo_models/yolov4-tiny-logistics_size_416_1.weights"
-    CONFIG_PATH = "storage/yolo_models/yolov4-tiny-logistics_size_416_1.cfg"
-    CLASS_NAMES_PATH = "storage/yolo_models/logistics.names"
+    WEIGHTS_PATH = os.path.join(BASE_DIR, "storage", "yolo_model_1", "yolov4-tiny-logistics_size_416_1.weights")
+    CONFIG_PATH = os.path.join(BASE_DIR, "storage", "yolo_model_1", "yolov4-tiny-logistics_size_416_1.cfg")
+    CLASS_NAMES_PATH = os.path.join(BASE_DIR, "storage", "yolo_model_1", "logistics.names")
     SCORE_THRESHOLD = 0.5
 
     print("[INFO] Loading YOLO Model...")

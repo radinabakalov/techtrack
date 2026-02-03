@@ -18,7 +18,7 @@ jobs:
       run: |
         mkdir -p techtrack/storage
         wget --no-check-certificate \
-          "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCr_HU1khJLSoF-BtJEFQq1AQfCXAdt1ohoRb-SozPEJu0?e=bzg1xQ=1&download=1" \
+          "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCr_HU1khJLSoF-BtJEFQq1AQfCXAdt1ohoRb-SozPEJu0?e=bzg1xQ=1&download=1&download=1" \
           -O model_archive.zip
           
     - name: Extract YOLO model
@@ -29,7 +29,7 @@ jobs:
     - name:  Download Downloading yolo_model_2
       run: |
         wget --no-check-certificate \
-         "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCtI6wA-FChS41NtVmJJmsAAS3OdFkxIHojpmWWjkpymMU?e=V04Oel=1&download=1" \
+         "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCtI6wA-FChS41NtVmJJmsAAS3OdFkxIHojpmWWjkpymMU?e=V04Oel=1&download=1&download=1" \
           -O model_archive_2.zip
           
     - name: Extract YOLO model
@@ -40,7 +40,7 @@ jobs:
     - name: Download test videos
       run: |
         wget --no-check-certificate \
-          "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQBJIuTDpeqiRZJvYQJxNREKAXLhjXybZNm2AKkQxC8vy6o?e=hTyM8O&download=1" \
+          "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQBJIuTDpeqiRZJvYQJxNREKAXLhjXybZNm2AKkQxC8vy6o?e=hTyM8O&download=1&download=1" \
           -O test_videos.zip
 
     - name: Extract test videos 
@@ -51,7 +51,7 @@ jobs:
     - name: Download logistics
       run: |
         wget --no-check-certificate \
-          "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQC83xUcRiY3T5jOXuZQK__yAUXV9vahEIRIxBY8i0NKSEE?e=lZaugX&download=1" \
+          "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQC83xUcRiY3T5jOXuZQK__yAUXV9vahEIRIxBY8i0NKSEE?e=lZaugX&download=&download=11" \
           -O logistics.zip
           
     - name: Extract logistics

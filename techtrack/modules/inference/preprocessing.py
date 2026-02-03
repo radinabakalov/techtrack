@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from typing import Generator
 
+import os
 
 class Preprocessing:
     """
@@ -48,23 +49,45 @@ class Preprocessing:
         - OpenCV VideoCapture Documentation: 
           https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html
         """
-        # TASK: Modify file to yield only every `drop_rate`-th frame.
-        # HINT: When running in Docker avoid using:
-        # -----------------------------
-        # cv.imshow('frame', gray)
-        # if cv.waitKey(1) == ord('q'):
-        #     break
-        # -----------------------------
-        # The standard Docker Engine does not support graphic displays, 
-        # unless configured to do so.
+        # Case 1: filename is a directory of images
+        if os.path.isdir(self.filename):
+            frame_files = sorted(os.listdir(self.filename))
+            frame_idx = 0
 
+            for name in frame_files:
+                if not name.lower().endswith((".png", ".jpg", ".jpeg")):
+                    continue
+
+                if frame_idx % self.drop_rate != 0:
+                    frame_idx += 1
+                    continue
+
+                frame_path = os.path.join(self.filename, name)
+                frame = cv2.imread(frame_path)
+
+                if frame is not None:
+                    yield frame
+
+                frame_idx += 1
+
+            return
+
+        # Case 2: filename is a video file
         cap = cv2.VideoCapture(self.filename)
 
         if not cap.isOpened():
             raise ValueError(f"Error: Unable to open video file '{self.filename}'.")
 
+        frame_idx = 0
+
         while cap.isOpened():
             ret, frame = cap.read()
-            yield frame
+            if not ret or frame is None:
+                break
+
+            if frame_idx % self.drop_rate == 0:
+                yield frame
+
+            frame_idx += 1
 
         cap.release()

@@ -10,7 +10,7 @@ mkdir -p techtrack/storage
 ###############################################
 echo " Downloading YOLO model 1..."
 wget --no-check-certificate \
-  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCr_HU1khJLSoF-BtJEFQq1AQfCXAdt1ohoRb-SozPEJu0?e=W4rYyM=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCr_HU1khJLSoF-BtJEFQq1AQfCXAdt1ohoRb-SozPEJu0?e=W4rYyM=1&download=1" \
   -O model_archive_1.zip
 
 echo " Extracting YOLO model 1..."
@@ -23,7 +23,7 @@ rm model_archive_1.zip
 ###############################################
 echo " Downloading YOLO model 2..."
 wget --no-check-certificate \
-  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCtI6wA-FChS41NtVmJJmsAAS3OdFkxIHojpmWWjkpymMU?e=V04Oel=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQCtI6wA-FChS41NtVmJJmsAAS3OdFkxIHojpmWWjkpymMU?e=V04Oel=1&download=1" \
   -O model_archive_2.zip
 
 echo "Extracting YOLO model 2..."
@@ -36,7 +36,7 @@ rm model_archive_2.zip
 ###############################################
 echo "Downloading test videos..."
 wget --no-check-certificate \
-  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQBJIuTDpeqiRZJvYQJxNREKAXLhjXybZNm2AKkQxC8vy6o?e=dU32hL=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQBJIuTDpeqiRZJvYQJxNREKAXLhjXybZNm2AKkQxC8vy6o?e=dU32hL=&download=11" \
   -O test_videos.zip
 
 echo "Extracting test videos..."
@@ -49,7 +49,7 @@ rm test_videos.zip
 ###############################################
 echo " Downloading logistics..."
 wget --no-check-certificate \
-  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQC83xUcRiY3T5jOXuZQK__yAUXV9vahEIRIxBY8i0NKSEE?e=VqVzqz=1" \
+  "https://livejohnshopkins-my.sharepoint.com/:u:/g/personal/jpulido6_jh_edu/IQC83xUcRiY3T5jOXuZQK__yAUXV9vahEIRIxBY8i0NKSEE?e=VqVzqz=&download=11" \
   -O logistics.zip
 
 echo "Extracting logistics..."

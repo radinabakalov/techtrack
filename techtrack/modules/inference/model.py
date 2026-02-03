@@ -28,9 +28,6 @@ class Detector:
         with open(class_path, "r") as f:
             self.classes = [line.strip() for line in f if line.strip()]
 
-        if not self.classes:
-            self.classes = []
-
         self.img_height: int = 0
         self.img_width: int = 0
 

@@ -35,7 +35,32 @@ def calculate_iou(boxA, boxB):
         The IoU value, which is the ratio of the intersection area over the union area.
         The value ranges from 0 to 1, where 0 indicates no overlap and 1 indicates perfect overlap.
     """
-    pass
+    # Boxes are (x, y, w, h)
+    ax, ay, aw, ah = boxA
+    bx, by, bw, bh = boxB
+
+    # Convert (x, y, w, h) to corner coords (x1, y1, x2, y2)
+    ax2, ay2 = ax + aw, ay + ah
+    bx2, by2 = bx + bw, by + bh
+
+    # Intersection rectangle
+    ix1 = max(ax, bx)
+    iy1 = max(ay, by)
+    ix2 = min(ax2, bx2)
+    iy2 = min(ay2, by2)
+
+    inter_w = max(0, ix2 - ix1)
+    inter_h = max(0, iy2 - iy1)
+    inter_area = inter_w * inter_h
+
+    area_a = max(0, aw) * max(0, ah)
+    area_b = max(0, bw) * max(0, bh)
+    union_area = area_a + area_b - inter_area
+
+    if union_area == 0:
+        return 0.0
+
+    return inter_area / union_area
 
 
 def match_detections(boxes, classes, scores, cls_scores, gt_boxes, gt_classes, map_iou_threshold, eval_type="class_scores"):
@@ -108,19 +133,73 @@ def match_detections(boxes, classes, scores, cls_scores, gt_boxes, gt_classes, m
     y_true = []
     pred_scores = []
 
-    ### TASK: Evaluate detections by matching predicted bounding boxes 
-    #           with ground truth boxes and generate corresponding true 
-    #           labels and prediction scores for further evaluation (e.g., 
-    #           computing mAP).
-    #   Notes
-    #   -----
-    #   - The function uses IoU matching to determine whether a detection 
-    #     sufficiently overlaps with a ground truth box.
-    #   - The specific handling of scores (e.g., weighting by objectness 
-    #     and/or classification) is determined by the eval_type.
+    # Loop through each image of detections/labels
+    for img_idx in range(len(gt_boxes)):
+        image_gt_boxes = gt_boxes[img_idx]
+        image_gt_classes = gt_classes[img_idx]
 
+        image_pred_boxes = boxes[img_idx]
+        image_pred_classes = classes[img_idx]
+        image_obj_scores = scores[img_idx]
+        image_cls_scores = cls_scores[img_idx]
 
-    return y_true, pred_scores
+        # If there are no predictions for this image, we can skip right away
+        if len(image_pred_boxes) == 0:
+            continue
+
+        # Figure out how many classes we have from the score vector length
+        num_classes = len(image_cls_scores[0])
+
+        # Track which GT boxes have already been used (so we don't match twice)
+        gt_used = [False] * len(image_gt_boxes)
+
+        # Go prediction by prediction and find the best unused GT match
+        for det_idx, pred_box in enumerate(image_pred_boxes):
+            pred_class = int(image_pred_classes[det_idx])
+            obj_score = float(image_obj_scores[det_idx])
+            class_score_vec = np.array(image_cls_scores[det_idx], dtype=float)
+
+            # Pick how we want to represent the "score vector" for this prediction
+            if eval_type == "objectness":
+                score_vec = np.zeros(num_classes, dtype=float)
+                if 0 <= pred_class < num_classes:
+                    score_vec[pred_class] = obj_score
+            elif eval_type == "combined":
+                score_vec = class_score_vec * obj_score
+            else:
+                # default: "class_scores"
+                score_vec = class_score_vec
+
+            best_iou = 0.0
+            best_gt_idx = -1
+
+            # Search for the best matching GT box (same class, unused)
+            for gt_idx, gt_box in enumerate(image_gt_boxes):
+                if gt_used[gt_idx]:
+                    continue
+                if int(image_gt_classes[gt_idx]) != pred_class:
+                    continue
+
+                iou = calculate_iou(pred_box, gt_box)
+                if iou > best_iou:
+                    best_iou = iou
+                    best_gt_idx = gt_idx
+
+            # If we found a good enough match, mark it as used and record TP
+            if best_gt_idx != -1 and best_iou >= map_iou_threshold:
+                gt_used[best_gt_idx] = True
+                y_true.append(int(image_gt_classes[best_gt_idx]))
+                pred_scores.append(score_vec)
+            else:
+                # Otherwise it's a false positive (no match)
+                y_true.append(-1)
+                pred_scores.append(score_vec)
+
+    if len(pred_scores) == 0:
+        # Return empty arrays with the right shapes
+        return np.array([], dtype=int), np.zeros((0, 0), dtype=float)
+
+    return np.array(y_true, dtype=int), np.vstack(pred_scores)
 
 
 def calculate_precision_recall_curve(y_true, pred_scores, num_classes=20):
@@ -174,23 +253,63 @@ def calculate_precision_recall_curve(y_true, pred_scores, num_classes=20):
     
     Returns the precision, recall values, and thresholds for each class based on the provided predictions.
     """
-    y_true_bin = label_binarize(y_true, classes=np.arange(num_classes))
+    y_true = np.asarray(y_true, dtype=int)
+    pred_scores = np.asarray(pred_scores, dtype=float)
+
     precision = {}
     recall = {}
     thresholds = {}
 
-    ### TASK: Compute the precision-recall curve for each class 
-    #           in a multi-class classification task. 
-    #           Notes
-    #           -----
-    #           - The true labels are first binarized using `label_binarize` from scikit-learn to facilitate
-    #             per-class evaluation.
-    #           - The precision and recall are computed iteratively: for each threshold, the counts of true positives,
-    #             false positives, and false negatives are updated, and the corresponding precision and recall are computed.
-    #           - This function assumes that higher predicted scores correspond to a higher likelihood that the sample
-    #             belongs to the class.
+    # Handle empty input 
+    if pred_scores.size == 0:
+        for c in range(num_classes):
+            precision[c] = np.array([], dtype=float)
+            recall[c] = np.array([], dtype=float)
+            thresholds[c] = np.array([], dtype=float)
+        return precision, recall, thresholds
 
-    
+    # pred_scores should be shape (N, num_classes)
+    if pred_scores.ndim == 1:
+        pred_scores = pred_scores.reshape(-1, 1)
+
+    for c in range(num_classes):
+        class_scores = pred_scores[:, c]
+
+        # One vs the rest: 1 if sample is truly class c, else 0
+        y_bin = (y_true == c).astype(int)
+        total_pos = int(y_bin.sum())
+
+        # If a class has no positives at all, keep the curve simple
+        if total_pos == 0:
+            uniq = np.unique(class_scores)[::-1]
+            precision[c] = np.zeros(len(uniq), dtype=float)
+            recall[c] = np.zeros(len(uniq), dtype=float)
+            thresholds[c] = uniq
+            continue
+
+        # Evaluate at unique thresholds (descending)
+        uniq_thresholds = np.unique(class_scores)[::-1]
+
+        p_vals = []
+        r_vals = []
+
+        for thr in uniq_thresholds:
+            predicted_pos = class_scores >= thr
+
+            tp = int(np.sum((y_bin == 1) & predicted_pos))
+            fp = int(np.sum((y_bin == 0) & predicted_pos))
+            fn = total_pos - tp
+
+            prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+
+            p_vals.append(prec)
+            r_vals.append(rec)
+
+        precision[c] = np.array(p_vals, dtype=float)
+        recall[c] = np.array(r_vals, dtype=float)
+        thresholds[c] = np.array(uniq_thresholds, dtype=float)
+
     return precision, recall, thresholds
 
 

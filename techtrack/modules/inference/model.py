@@ -26,7 +26,10 @@ class Detector:
 
         # Load class labels
         with open(class_path, "r") as f:
-            self.classes = [line.strip() for line in f.readlines()]
+            self.classes = [line.strip() for line in f if line.strip()]
+
+        if not self.classes:
+            self.classes = []
 
         self.img_height: int = 0
         self.img_width: int = 0
@@ -58,8 +61,8 @@ class Detector:
           https://opencv-tutorial.readthedocs.io/en/latest/yolo/yolo.html#create-a-blob
         """
         if preprocessed_frame is None or preprocessed_frame.size == 0:
-            raise ValueError("Input frame is empty.")
-        
+            raise ValueError("Input frame is empty")
+
         self.img_height, self.img_width = preprocessed_frame.shape[:2]
 
         # Turn the image into a blob for YOLO (normalizes and resizes)
@@ -122,7 +125,7 @@ class Detector:
         - OpenCV YOLO Documentation: 
           https://opencv-tutorial.readthedocs.io/en/latest/yolo/yolo.html#create-a-blob
         """
-        # Handle empty or missing predictions safely
+        # Return empty lists if no predictions
         if not predict_output:
             return [], [], [], []
         
@@ -131,34 +134,35 @@ class Detector:
         confidence_scores: List[float] = []
         class_scores: List[np.ndarray] = []
 
-        # Loop over each output layer's detections
+        # Process detections from each output layer
         for output in predict_output:
             for detection in output:
-                # detection format: [cx, cy, w, h, obj_score, class1, class2, ...]
+                # Each detection: [cx, cy, w, h, objectness, class1_prob, class2_prob, ...]
                 scores = detection[5:]
                 if scores.size == 0:
+                    continue
+                
+                # Skip low-confidence detections
+                obj_score = float(detection[4])
+                if obj_score < self.score_threshold:
                     continue
 
                 best_class_id = int(np.argmax(scores))
 
-                # YOLO box confidence (objectness score)
-                objectness = float(detection[4])
+                # Convert normalized coordinates to pixel coordinates
+                cx = float(detection[0]) * self.img_width
+                cy = float(detection[1]) * self.img_height
+                w = float(detection[2]) * self.img_width
+                h = float(detection[3]) * self.img_height
 
-                # Keep detections at or above the threshold
-                if objectness >= self.score_threshold:
-                    # Convert normalized bbox to pixel bbox
-                    cx = float(detection[0]) * self.img_width
-                    cy = float(detection[1]) * self.img_height
-                    w = float(detection[2]) * self.img_width
-                    h = float(detection[3]) * self.img_height
+                # Convert from center format (cx, cy, w, h) to corner format (x, y, w, h)
+                x = int(cx - (w / 2))
+                y = int(cy - (h / 2))
 
-                    x = int(cx - (w / 2))
-                    y = int(cy - (h / 2))
-
-                    bboxes.append([x, y, int(w), int(h)])
-                    class_ids.append(best_class_id)
-                    confidence_scores.append(objectness)
-                    class_scores.append(scores)
+                bboxes.append([x, y, int(w), int(h)])
+                class_ids.append(best_class_id)
+                confidence_scores.append(obj_score)
+                class_scores.append(scores)
 
         return bboxes, class_ids, confidence_scores, class_scores
 

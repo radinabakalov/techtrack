@@ -135,8 +135,24 @@ class HardNegativeMiner:
         Returns:
             DataFrame: A DataFrame containing the sampled hard negative examples.
         """
-        
-        # TASK: Complete this method to rank the hard samples.
+        # Construct the table if it doesn't exist yet
+        if self.table is None or self.table.empty:
+            self.__construct_table()
 
-        
-        pass
+        # If construction failed or no data available, return empty DataFrame
+        if self.table is None or self.table.empty:
+            return pd.DataFrame(columns=self.table.columns)
+
+        # Validate that criteria is a valid loss column
+        valid_columns = set(self.measure.columns)
+        if criteria not in valid_columns:
+            raise KeyError(
+                f"Invalid criteria '{criteria}'. Must be one of: {sorted(valid_columns)}")
+
+        # Sort by loss (highest to lowest). mergesort keeps stable ordering for ties
+        sorted_table = self.table.sort_values(by=criteria, ascending=False, kind="mergesort")
+
+        # Cap at the actual number of rows if requested more than available
+        num_hard_negatives = min(int(num_hard_negatives), len(sorted_table))
+
+        return sorted_table.head(num_hard_negatives).reset_index(drop=True)

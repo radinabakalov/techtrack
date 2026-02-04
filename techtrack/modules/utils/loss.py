@@ -59,6 +59,10 @@ class Loss:
         if predictions is None:
             return np.zeros((0, 4), dtype=float), np.zeros((0,), dtype=float), np.zeros((0, self.num_classes), dtype=float)
 
+        # If predictions are wrapped as a single-image batch: [[pred1, pred2, ...]]
+        if isinstance(predictions, list) and len(predictions) == 1 and isinstance(predictions[0], list):
+            predictions = predictions[0]
+
         # If already passed in as (boxes, obj, cls)
         if isinstance(predictions, tuple) and len(predictions) == 3:
             pred_box, pred_obj, pred_cls = predictions
@@ -146,6 +150,10 @@ class Loss:
             gt_box = np.array(gt_box, dtype=float).reshape(-1, 4)
             gt_cls = np.array(gt_cls, dtype=int).reshape(-1)
             return gt_box, gt_cls
+        
+        # If a single annotation row is passed directly (rare, but I think this is possible)
+        if isinstance(annotations, (list, np.ndarray)) and len(annotations) > 0 and not isinstance(annotations[0], (list, tuple, dict, np.ndarray)):
+            annotations = [annotations]
 
         gt_boxes = []
         gt_classes = []
@@ -163,13 +171,13 @@ class Loss:
                 gt_classes.append(int(cls))
                 continue
 
-            # Row style: [x, y, w, h, class_id]
+            # Row style: [class_id, x1, y1, x2, y2]
             row = np.array(a, dtype=float).flatten()
             if row.size < 5:
                 continue
 
-            gt_boxes.append(row[:4].tolist())
-            gt_classes.append(int(row[4]))
+            gt_classes.append(int(row[0]))
+            gt_boxes.append(row[1:5].tolist())
 
         gt_box = np.array(gt_boxes, dtype=float).reshape(-1, 4)
         gt_cls = np.array(gt_classes, dtype=int).reshape(-1)
@@ -203,28 +211,26 @@ class Loss:
 
         # Small helper as things get too long without it
         def iou_xywh(box_a, box_b):
-            ax, ay, aw, ah = box_a
-            bx, by, bw, bh = box_b
+            ax1, ay1, ax2, ay2 = box_a
+            bx1, by1, bx2, by2 = box_b
 
-            ax2, ay2 = ax + aw, ay + ah
-            bx2, by2 = bx + bw, by + bh
-
-            inter_x1 = max(ax, bx)
-            inter_y1 = max(ay, by)
+            inter_x1 = max(ax1, bx1)
+            inter_y1 = max(ay1, by1)
             inter_x2 = min(ax2, bx2)
             inter_y2 = min(ay2, by2)
 
-            inter_w = max(0, inter_x2 - inter_x1)
-            inter_h = max(0, inter_y2 - inter_y1)
+            inter_w = max(0.0, inter_x2 - inter_x1)
+            inter_h = max(0.0, inter_y2 - inter_y1)
             inter_area = inter_w * inter_h
 
-            area_a = max(0, aw) * max(0, ah)
-            area_b = max(0, bw) * max(0, bh)
-            union_area = area_a + area_b - inter_area
+            area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+            area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
 
-            if union_area == 0:
+            union = area_a + area_b - inter_area
+            if union <= 0:
                 return 0.0
-            return inter_area / union_area
+
+            return inter_area / union
 
         matched_pred_indices = set()
 

@@ -28,6 +28,8 @@ class Detector:
         with open(class_path, "r") as f:
             self.classes = [line.strip() for line in f if line.strip()]
 
+        # No exception as empty file should be allowed 
+
         self.img_height: int = 0
         self.img_width: int = 0
 
@@ -57,30 +59,33 @@ class Detector:
         - OpenCV YOLO Documentation: 
           https://opencv-tutorial.readthedocs.io/en/latest/yolo/yolo.html#create-a-blob
         """
-        if preprocessed_frame is None or preprocessed_frame.size == 0:
-            raise ValueError("Input frame is empty")
-
-        self.img_height, self.img_width = preprocessed_frame.shape[:2]
-
-        # Turn the image into a blob for YOLO (normalizes and resizes)
+        frame = np.asarray(preprocessed_frame) if preprocessed_frame is not None else None
+        
+        if frame is None or frame.size == 0 or frame.ndim < 2:
+             raise ValueError("Input frame is empty")
+        
+        # Store frame dimensions for coordinate conversion later
+        self.img_height, self.img_width = frame.shape[:2]
+        
+        # Convert frame to blob format (normalized, resized to 416x416)
         blob = cv2.dnn.blobFromImage(
-            preprocessed_frame,
-            scalefactor=1 / 255.0, 
+            frame,
+            scalefactor=1 / 255.0,
             size=(416, 416),
             swapRB=True,
-            crop=False,
-            )
+            crop=False,)
         
         self.net.setInput(blob)
         
-        # Get the names of the output layers (YOLO has multiple)
+        # Get output layer names for YOLO detection layers
         layer_names = self.net.getLayerNames()
         out_layer_ids = self.net.getUnconnectedOutLayers()
 
-        # OpenCV sometimes returns shape (N,1), sometimes (N,)
+        # Flatten array (OpenCV returns inconsistent shapes)
         out_layer_ids = np.array(out_layer_ids).flatten()
         out_layer_names = [layer_names[i - 1] for i in out_layer_ids]
 
+        # Run forward pass through the network
         outputs = self.net.forward(out_layer_names)
         return outputs
 
@@ -134,31 +139,31 @@ class Detector:
         # Process detections from each output layer
         for output in predict_output:
             for detection in output:
-                # Each detection: [cx, cy, w, h, objectness, class1_prob, class2_prob, ...]
+                # Extract class probabilities (everything after [cx, cy, w, h, objectness])
                 scores = detection[5:]
                 if scores.size == 0:
                     continue
-                
-                # Skip low-confidence detections
-                obj_score = float(detection[4])
-                if obj_score < self.score_threshold:
-                    continue
 
                 best_class_id = int(np.argmax(scores))
+                best_score = float(scores[best_class_id])
 
-                # Convert normalized coordinates to pixel coordinates
+                # Filter by class confidence threshold
+                if float(detection[4]) <= self.score_threshold:
+                    continue
+                
+                # Convert normalized coordinates to pixels
                 cx = float(detection[0]) * self.img_width
                 cy = float(detection[1]) * self.img_height
                 w = float(detection[2]) * self.img_width
                 h = float(detection[3]) * self.img_height
 
-                # Convert from center format (cx, cy, w, h) to corner format (x, y, w, h)
+                # Convert center format to top-left corner format
                 x = int(cx - (w / 2))
                 y = int(cy - (h / 2))
 
                 bboxes.append([x, y, int(w), int(h)])
                 class_ids.append(best_class_id)
-                confidence_scores.append(obj_score)
+                confidence_scores.append(float(detection[4]))
                 class_scores.append(scores)
 
         return bboxes, class_ids, confidence_scores, class_scores

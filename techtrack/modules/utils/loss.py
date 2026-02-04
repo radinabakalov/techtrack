@@ -56,14 +56,15 @@ class Loss:
         Returns:
             tuple: (bounding boxes, objectness scores, class scores)
         """
+        # Return empty arrays if no predictions
         if predictions is None:
             return np.zeros((0, 4), dtype=float), np.zeros((0,), dtype=float), np.zeros((0, self.num_classes), dtype=float)
 
-        # If predictions are wrapped as a single-image batch: [[pred1, pred2, ...]]
+        # Unwrap single image batch format: [[pred1, pred2, ...]] -> [pred1, pred2, ...]
         if isinstance(predictions, list) and len(predictions) == 1 and isinstance(predictions[0], list):
             predictions = predictions[0]
 
-        # If already passed in as (boxes, obj, cls)
+        # Handle pre-separated format: (boxes, objectness, class_scores)
         if isinstance(predictions, tuple) and len(predictions) == 3:
             pred_box, pred_obj, pred_cls = predictions
             pred_box = np.array(pred_box, dtype=float).reshape(-1, 4)
@@ -75,8 +76,9 @@ class Loss:
         pred_obj = []
         pred_cls = []
 
+        # Parse each prediction (supports both dict and array formats)
         for p in predictions:
-            # Dictionary style
+            # Handle dictionary format
             if isinstance(p, dict):
                 box = p.get("bbox") or p.get("box") or p.get("bbox_xywh")
                 obj = p.get("score") or p.get("objectness") or p.get("conf")
@@ -95,14 +97,14 @@ class Loss:
                     if cls_arr.size == self.num_classes:
                         pred_cls.append(cls_arr)
                     else:
-                        # Adjust to correct size
+                        # Pad or trim to match num_classes
                         vec = np.zeros(self.num_classes, dtype=float)
                         take = min(self.num_classes, cls_arr.size)
                         vec[:take] = cls_arr[:take]
                         pred_cls.append(vec)
                 continue
 
-            # List/tuple row style: [x, y, w, h, obj, class_scores...]
+            # Handle array/list format: [x, y, w, h, obj, class_scores...]
             row = np.array(p, dtype=float).flatten()
             if row.size < 5:
                 continue
@@ -121,6 +123,7 @@ class Loss:
                 vec[:take] = cls_part[:take]
                 pred_cls.append(vec)
 
+        # Convert lists to numpy arrays
         pred_box = np.array(pred_boxes, dtype=float).reshape(-1, 4)
         pred_obj = np.array(pred_obj, dtype=float).reshape(-1)
         pred_cls = np.array(pred_cls, dtype=float)
@@ -141,25 +144,27 @@ class Loss:
         Returns:
             tuple: (ground truth bounding boxes, class labels)
         """
+        # Return empty arrays if no annotations
         if annotations is None:
             return np.zeros((0, 4), dtype=float), np.zeros((0,), dtype=int)
 
-        # If already passed in as (boxes, classes)
+        # Handle pre-separated format: (boxes, class_ids)
         if isinstance(annotations, tuple) and len(annotations) == 2:
             gt_box, gt_cls = annotations
             gt_box = np.array(gt_box, dtype=float).reshape(-1, 4)
             gt_cls = np.array(gt_cls, dtype=int).reshape(-1)
             return gt_box, gt_cls
         
-        # If a single annotation row is passed directly (rare, but I think this is possible)
+        # Wrap single annotation row as a list
         if isinstance(annotations, (list, np.ndarray)) and len(annotations) > 0 and not isinstance(annotations[0], (list, tuple, dict, np.ndarray)):
             annotations = [annotations]
 
         gt_boxes = []
         gt_classes = []
 
+        # Parse each annotation (supports both dict and array formats)
         for a in annotations:
-            # Dictionary style
+            # Handle dictionary format
             if isinstance(a, dict):
                 box = a.get("bbox") or a.get("box") or a.get("bbox_xywh")
                 cls = a.get("class_id") or a.get("class") or a.get("label")
@@ -171,14 +176,15 @@ class Loss:
                 gt_classes.append(int(cls))
                 continue
 
-            # Row style: [class_id, x1, y1, x2, y2]
+            # Handle array/list format: [class_id, x1, y1, x2, y2]
             row = np.array(a, dtype=float).flatten()
             if row.size < 5:
                 continue
-
+            
             gt_classes.append(int(row[0]))
             gt_boxes.append(row[1:5].tolist())
 
+        # Convert lists to numpy arrays
         gt_box = np.array(gt_boxes, dtype=float).reshape(-1, 4)
         gt_cls = np.array(gt_classes, dtype=int).reshape(-1)
 
@@ -200,6 +206,7 @@ class Loss:
         Returns:
             dict: Dictionary containing the computed loss components.
         """
+        # Initialize loss components
         loc_loss = 0 # localization loss
         class_loss = 0 # classification loss
         conf_loss_obj = 0 # with object (or confidence) loss
@@ -209,7 +216,7 @@ class Loss:
         pred_boxes, pred_obj_scores, pred_cls_scores = self.get_predictions(predictions)
         gt_boxes, gt_class_ids = self.get_annotations(annotations)
 
-        # Small helper as things get too long without it
+        # Helper function to compute IoU between two boxes
         def iou_xywh(box_a, box_b):
             ax1, ay1, ax2, ay2 = box_a
             bx1, by1, bx2, by2 = box_b
@@ -282,6 +289,7 @@ class Loss:
                 continue
             conf_loss_noobj += float(pred_obj) ** 2
 
+        # Compute weighted total loss
         total_loss = (
             self.lambda_coord * loc_loss
             + self.lambda_obj * conf_loss_obj

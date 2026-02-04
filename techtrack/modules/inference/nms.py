@@ -61,7 +61,7 @@ class NMS:
         )
         ```
         """
-        # Handle empty inputs 
+        # Return empty if no detections 
         if not bboxes or not scores:
             return [], [], [], []
 
@@ -73,11 +73,11 @@ class NMS:
             nms_threshold=self.nms_iou_threshold,
             )
 
-        # If nothing is kept, return empty lists (noticed that unit tests needed this)
+        # Return empty if NMS filtered everything out
         if indices is None or len(indices) == 0:
             return [], [], [], []
 
-        # OpenCV may return [[0], [2]] or [0, 2]
+        # Flatten indices (OpenCV may return [[0], [2]] or [0, 2])
         keep_indices = np.array(indices).flatten().tolist()
 
         filtered_bboxes = [bboxes[i] for i in keep_indices]

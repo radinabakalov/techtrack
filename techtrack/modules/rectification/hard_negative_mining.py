@@ -139,20 +139,20 @@ class HardNegativeMiner:
         if self.table is None or self.table.empty:
             self.__construct_table()
 
-        # If construction failed or no data available, return empty DataFrame
+        # Return empty DataFrame if still no data
         if self.table is None or self.table.empty:
             return pd.DataFrame(columns=self.table.columns)
 
-        # Validate that criteria is a valid loss column
+        # Check that criteria is a valid loss column
         valid_columns = set(self.measure.columns)
         if criteria not in valid_columns:
             raise KeyError(
                 f"Invalid criteria '{criteria}'. Must be one of: {sorted(valid_columns)}")
 
-        # Sort by loss (highest to lowest). mergesort keeps stable ordering for ties
+        # Sort from highest to lowest loss (mergesort for stable ordering)
         sorted_table = self.table.sort_values(by=criteria, ascending=False, kind="mergesort")
 
-        # Cap at the actual number of rows if requested more than available
+        # Limit to available rows if asking for more than we have
         num_hard_negatives = min(int(num_hard_negatives), len(sorted_table))
 
         return sorted_table.head(num_hard_negatives).reset_index(drop=True)

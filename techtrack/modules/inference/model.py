@@ -22,14 +22,14 @@ class Detector:
         :ivar self.img_height: Height of the input image/frame.
         :ivar self.img_width: Width of the input image/frame.
         """
+        # Load YOLO model from weights and config files
         self.net = cv2.dnn.readNet(weights_path, config_path)
 
-        # Load class labels
+        # Load class labels from file
         with open(class_path, "r") as f:
             self.classes = [line.strip() for line in f if line.strip()]
 
-        # No exception as empty file should be allowed 
-
+        # Image dimensions (set during prediction)
         self.img_height: int = 0
         self.img_width: int = 0
 
@@ -64,10 +64,10 @@ class Detector:
         if frame is None or frame.size == 0 or frame.ndim < 2:
              raise ValueError("Input frame is empty")
         
-        # Store frame dimensions for coordinate conversion later
+        # Store dimensions for later coordinate conversion
         self.img_height, self.img_width = frame.shape[:2]
         
-        # Convert frame to blob format (normalized, resized to 416x416)
+        # Prepare input blob (normalize to 0-1, resize to 416x416)
         blob = cv2.dnn.blobFromImage(
             frame,
             scalefactor=1 / 255.0,
@@ -77,15 +77,15 @@ class Detector:
         
         self.net.setInput(blob)
         
-        # Get output layer names for YOLO detection layers
+        # Get YOLO output layer names
         layer_names = self.net.getLayerNames()
         out_layer_ids = self.net.getUnconnectedOutLayers()
 
-        # Flatten array (OpenCV returns inconsistent shapes)
+        # Flatten to 1D array (OpenCV shape is inconsistent)
         out_layer_ids = np.array(out_layer_ids).flatten()
         out_layer_names = [layer_names[i - 1] for i in out_layer_ids]
 
-        # Run forward pass through the network
+        # Run forward pass 
         outputs = self.net.forward(out_layer_names)
         return outputs
 
@@ -139,7 +139,7 @@ class Detector:
         # Process detections from each output layer
         for output in predict_output:
             for detection in output:
-                # Extract class probabilities (everything after [cx, cy, w, h, objectness])
+                # Extract class probabilities 
                 scores = detection[5:]
                 if scores.size == 0:
                     continue
@@ -147,7 +147,7 @@ class Detector:
                 best_class_id = int(np.argmax(scores))
                 best_score = float(scores[best_class_id])
 
-                # Filter by class confidence threshold
+                # Filter by class confidence score
                 if float(detection[4]) <= self.score_threshold:
                     continue
                 
@@ -157,7 +157,7 @@ class Detector:
                 w = float(detection[2]) * self.img_width
                 h = float(detection[3]) * self.img_height
 
-                # Convert center format to top-left corner format
+                # Convert from center (cx, cy, w, h) to corner (x, y, w, h)
                 x = int(cx - (w / 2))
                 y = int(cy - (h / 2))
 

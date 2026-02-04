@@ -49,15 +49,17 @@ class Preprocessing:
         - OpenCV VideoCapture Documentation: 
           https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html
         """
-        # Case 1: filename is a directory of images
+        # Case 1: directory of images
         if os.path.isdir(self.filename):
             frame_files = sorted(os.listdir(self.filename))
             frame_idx = 0
 
             for name in frame_files:
+                # Skip non-image files
                 if not name.lower().endswith((".png", ".jpg", ".jpeg")):
                     continue
 
+                # Drop frames based on drop_rate (e.g., drop_rate=2 keeps every 2nd frame)        
                 if frame_idx % self.drop_rate != 0:
                     frame_idx += 1
                     continue
@@ -72,7 +74,7 @@ class Preprocessing:
 
             return
 
-        # Case 2: filename is a video file
+        # Case 2: video file
         cap = cv2.VideoCapture(self.filename)
 
         if not cap.isOpened():
@@ -84,7 +86,8 @@ class Preprocessing:
             ret, frame = cap.read()
             if not ret or frame is None:
                 break
-
+            
+            # Yield frames at specified interval
             if frame_idx % self.drop_rate == 0:
                 yield frame
 

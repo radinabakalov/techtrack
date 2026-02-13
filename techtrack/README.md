@@ -2,6 +2,8 @@
 
 This project implements an end-to-end object detection pipeline for the TechTrack assignment using a pre-trained YOLO model. The system handles video input, runs inference, post-processes detections, and evaluates model performance.
 
+In addition to the core detection system, this repository includes a full case study (CASE_ANALYSIS.md) analyzing model selection, dataset sampling, NMS configuration, augmentation robustness, and hard negative mining strategies.
+
 The code is organized into separate modules for inference, preprocessing, and evaluation to keep things clean and testable.
 
 ---
@@ -9,26 +11,43 @@ The code is organized into separate modules for inference, preprocessing, and ev
 ## Project Structure
 
 ```
-techtrack/
-├── modules/
-│   ├── inference/          # Model loading, prediction, NMS, preprocessing
-│   │   ├── model.py
-│   │   ├── nms.py
-│   │   └── preprocessing.py
-│   ├── rectification/      # Loss computation and hard negative mining
-│   │   ├── augmentation.py
-│   │   └── hard_negative_mining.py
-│   └── utils/              # Metrics and loss utilities
-│       ├── loss.py
-│       └── metrics.py
-├── storage/                # Model configs, weights, class names, and test assets
-│   ├── yolo_model_1/
-│   ├── yolo_model_2/
-│   ├── logistics/
-│   └── test_videos/
-├── app.py                  # Main entry point
+├── techtrack/                  
+│   ├── modules/
+│   │   ├── inference/            # Model loading, prediction, NMS, preprocessing
+│   │   │   ├── model.py
+│   │   │   ├── nms.py
+│   │   │   └── preprocessing.py
+│   │   ├── rectification/        # Loss computation and hard negative mining
+│   │   │   ├── augmentation.py
+│   │   │   └── hard_negative_mining.py
+│   │   └── utils/                # Metrics and loss utilities
+│   │       ├── loss.py
+│   │       └── metrics.py
+│   ├── storage/                  # Model weights, configs, dataset
+│   │   ├── yolo_model_1/
+│   │   ├── yolo_model_2/
+│   │   ├── logistics/
+│   │   └── test_videos/
+│   └── app.py                    # Main entry point
+│
+├── analysis/                     # Case study analysis artifacts
+│   ├── figures/                  # All figures used in CASE_ANALYSIS.md
+│   ├── cache/                    # Cached model outputs and loss data
+│   ├── sample_images.txt         # Fixed 6,000-image subset
+│   ├── task1.ipynb
+│   ├── task2.ipynb
+│   ├── task3.ipynb
+│   ├── task4.ipynb
+│   └── task5.ipynb
+│
+├── test/                         # Unit tests
+│
+├── CASE_ANALYSIS.md              # Final case study report (submitted)
+├── ANALYSIS_DESIGN_ASSIGNMENT.md
+├── IMPLEMENTATION_ASSIGNMENT.md
 ├── Dockerfile
 ├── requirements.txt
+├── setup.sh
 └── README.md
 ```
 
@@ -87,7 +106,7 @@ python -m unittest discover -s test -p "unit_test*.py"
 These tests validate:
 - Model predictions 
 - Post-processing and thresholding
-- Loss and metric 
+- Loss and metrics 
 - Hard negative mining 
 - End-to-end detector integration
 

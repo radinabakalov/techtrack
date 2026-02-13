@@ -11,44 +11,45 @@ The code is organized into separate modules for inference, preprocessing, and ev
 ## Project Structure
 
 ```
-├── techtrack/                  
+├── README.md                       # Project overview and usage instructions
+├── CASE_ANALYSIS.md                # Final case study report
+├── ANALYSIS_DESIGN_ASSIGNMENT.md
+├── IMPLEMENTATION_ASSIGNMENT.md
+├── Dockerfile
+├── requirements.txt
+├── setup.sh
+├── .gitignore
+│
+├── techtrack/                      # Core object detection system
 │   ├── modules/
-│   │   ├── inference/            # Model loading, prediction, NMS, preprocessing
+│   │   ├── inference/              # Model loading, prediction, NMS, preprocessing
 │   │   │   ├── model.py
 │   │   │   ├── nms.py
 │   │   │   └── preprocessing.py
-│   │   ├── rectification/        # Loss computation and hard negative mining
+│   │   ├── rectification/          # Loss computation and hard negative mining
 │   │   │   ├── augmentation.py
 │   │   │   └── hard_negative_mining.py
-│   │   └── utils/                # Metrics and loss utilities
+│   │   └── utils/                  # Metrics and loss utilities
 │   │       ├── loss.py
 │   │       └── metrics.py
-│   ├── storage/                  # Model weights, configs, dataset
+│   ├── storage/                    # Model weights, configs, dataset
 │   │   ├── yolo_model_1/
 │   │   ├── yolo_model_2/
 │   │   ├── logistics/
 │   │   └── test_videos/
-│   └── app.py                    # Main entry point
+│   └── app.py                      # Main entry point
 │
-├── analysis/                     # Case study analysis artifacts
-│   ├── figures/                  # All figures used in CASE_ANALYSIS.md
-│   ├── cache/                    # Cached model outputs and loss data
-│   ├── sample_images.txt         # Fixed 6,000-image subset
+├── analysis/                       # Case study analysis artifacts
+│   ├── figures/                    # All figures used in CASE_ANALYSIS.md
+│   ├── cache/                      # Cached model outputs and loss data (ignored if large)
+│   ├── sample_images.txt           # Fixed 6,000-image subset
 │   ├── task1.ipynb
 │   ├── task2.ipynb
 │   ├── task3.ipynb
 │   ├── task4.ipynb
 │   └── task5.ipynb
 │
-├── test/                         # Unit tests
-│
-├── CASE_ANALYSIS.md              # Final case study report (submitted)
-├── ANALYSIS_DESIGN_ASSIGNMENT.md
-├── IMPLEMENTATION_ASSIGNMENT.md
-├── Dockerfile
-├── requirements.txt
-├── setup.sh
-└── README.md
+└── test/                           # Unit tests
 ```
 
 ---
